@@ -346,7 +346,7 @@ sources:
     - openzfs
 - name: avahi
   repo: https://github.com/truenas/avahi
-  branch: SCALE-v0.8
+  branch: disable-inotify
   generate_version: false
 - name: py_libzfs
   repo: https://github.com/truenas/py-libzfs
