@@ -61,10 +61,12 @@ apt-repos:
 ############################################################################
 base-packages:
 - dosfstools
-- linux-truenas-libc-dev
+- linux-truenas-production-libc-dev
 - linux-headers-amd64
-- linux-headers-truenas-amd64
-- linux-image-truenas-amd64
+- linux-headers-truenas-production-amd64
+- linux-headers-truenas-debug-amd64
+- linux-image-truenas-production-amd64
+- linux-image-truenas-debug-amd64
 - linux-perf
 - avahi-daemon
 - avahi-utils
@@ -215,7 +217,7 @@ additional-packages:
 iso-packages:
 - curl
 - bzip2
-- linux-image-truenas-amd64
+- linux-image-truenas-debug-amd64
 - dialog
 - iproute2
 - jq
