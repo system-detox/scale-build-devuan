@@ -9,8 +9,10 @@
 A build framework for TrueNAS SCALE.
 
 ++++++++++++++++
+
 This is a modified version of the original build framework for TrueNAS SCALE and not affiliated with iXSystems or the official TrueNAS SCALE builds in any way.
 The modifications performed in this repository aims to move TrueNAS SCALE to a Devuan Linux base, remove any presence of systemd and restore order in the universe.
+
 ++++++++++++++++
 
 Found an issue in the build for SCALE? Please report it on our [Jira bugtracker](https://jira.ixsystems.com).
