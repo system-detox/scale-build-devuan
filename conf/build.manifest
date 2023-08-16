@@ -1,6 +1,6 @@
 ---
-code_name: "Cobia"
-debian_release: "bullseye"
+code_name: "Dragonfish"
+debian_release: "bookworm"
 identity_file_path_default: "~/.ssh/id_rsa"
 #
 # List of apt repositories that are used and setup inside the build environment
@@ -8,47 +8,35 @@ identity_file_path_default: "~/.ssh/id_rsa"
 # into the build chroots, or the final system images.
 ############################################################################
 apt-repos:
-  url: http://apt.tn.ixsystems.com/apt-direct/bluefin/nightlies/debian/
-  distribution: bullseye
+  url: http://apt.tn.ixsystems.com/apt-direct/dragonfish/nightlies/debian/
+  distribution: bookworm
   components: main
   additional:
-  - url: http://apt.tn.ixsystems.com/apt-direct/bluefin/nightlies/gluster/
-    distribution: bullseye
-    component: main
-    key: keys/gluster.gpg
-  - url: http://apt.tn.ixsystems.com/apt-direct/bluefin/nightlies/libnvidia/
-    distribution: bullseye
+  - url: http://apt.tn.ixsystems.com/apt-direct/dragonfish/nightlies/libnvidia/
+    distribution: bookworm
     component: main
     key: keys/docker.gpg
-  - url: http://apt.tn.ixsystems.com/apt-direct/bluefin/nightlies/nvidia-container/
-    distribution: bullseye
-    component: main
-    key: keys/docker.gpg
-  - url: http://apt.tn.ixsystems.com/apt-direct/bluefin/nightlies/nvidia-docker/
-    distribution: bullseye
-    component: main
-    key: keys/docker.gpg
-  - url: http://apt.tn.ixsystems.com/apt-direct/bluefin/nightlies/helm/
+  - url: http://apt.tn.ixsystems.com/apt-direct/dragonfish/nightlies/helm/
     distribution: all
     component: main
     key: keys/helm.gpg
-  - url: http://apt.tn.ixsystems.com/apt-direct/bluefin/nightlies/debian-security/
-    distribution: bullseye-security
+  - url: http://apt.tn.ixsystems.com/apt-direct/dragonfish/nightlies/debian-security/
+    distribution: bookworm-security
     component: main
-  - url: http://apt.tn.ixsystems.com/apt-direct/bluefin/nightlies/debian-backports/
-    distribution: bullseye-backports
+  - url: http://apt.tn.ixsystems.com/apt-direct/dragonfish/nightlies/debian-backports/
+    distribution: bookworm-backports
     component: "main contrib non-free"
-  - url: http://apt.tn.ixsystems.com/apt-direct/bluefin/nightlies/debian-debug/
-    distribution: bullseye-debug
+  - url: http://apt.tn.ixsystems.com/apt-direct/dragonfish/nightlies/debian-debug/
+    distribution: bookworm-debug
     component: main
-  - url: http://apt.tn.ixsystems.com/apt-direct/bluefin/nightlies/nodejs/
-    distribution: bullseye
-    component: main
-  - url: http://apt.tn.ixsystems.com/apt-direct/bluefin/nightlies/yarn/
+  - url: http://apt.tn.ixsystems.com/apt-direct/dragonfish/nightlies/yarn/
     distribution: stable
     component: main
-  - url: http://apt.tn.ixsystems.com/apt-direct/bluefin/nightlies/nvidia/
-    distribution: bullseye
+  - url: http://apt.tn.ixsystems.com/apt-direct/dragonfish/nightlies/nvidia/
+    distribution: bookworm
+    component: main
+  - url: http://apt.tn.ixsystems.com/apt-direct/dragonfish/nightlies/pcm/
+    distribution: bookworm
     component: main
 
 #
@@ -56,57 +44,112 @@ apt-repos:
 # NOTE: Installed in the order listed
 ############################################################################
 base-packages:
-- dosfstools
-- linux-truenas-production-libc-dev
-- linux-headers-truenas-production-amd64
-- linux-headers-truenas-debug-amd64
-- linux-image-truenas-production-amd64
-- linux-image-truenas-debug-amd64
-- linux-perf
-- avahi-daemon
-- avahi-utils
-- nfs-kernel-server
-- bpftrace
-- bpfcc-tools
-- consul
-- firmware-bnx2
-- firmware-bnx2x
-- firmware-cavium
-- firmware-linux
-- firmware-myricom
-- firmware-netronome
-- firmware-netxen
-- firmware-qlogic
-- firmware-realtek
-- grub-pc-bin
-- grub-efi-amd64-bin
-- htop
-- ifstat
-- nvidia-kernel-dkms
-- nslcd
-- nvidia-container-toolkit
-- nvidia-smi
-- openzfs
-- open-vm-tools
-- libnvidia-encode1
-- linux-cpupower
-- truenas-samba
-- nfs4xdr-acl-tools
-- nfs4-acl-tools
-- qemu-guest-agent
-- scst-dbg
-- squashfs-tools
-- sysstat
-- libssl1.1
-- openssl
-- truenas
-- wireguard-dkms
-- wireguard-tools
-- openzfs-zfs-modules-dbg
-- openzfs-zfs-test
-- openzfs-zfs-initramfs
-- nvme-cli
-- convmv
+- name: libssl3
+  install_recommends: true
+- name: openssl
+  install_recommends: true
+- name: dosfstools
+  install_recommends: true
+- name: linux-truenas-production-libc-dev
+  install_recommends: true
+- name: linux-headers-truenas-production-amd64
+  install_recommends: true
+- name: linux-headers-truenas-debug-amd64
+  install_recommends: true
+- name: linux-image-truenas-production-amd64
+  install_recommends: true
+- name: linux-image-truenas-debug-amd64
+  install_recommends: true
+- name: linux-perf-truenas
+  install_recommends: true
+- name: avahi-daemon
+  install_recommends: true
+- name: avahi-utils
+  install_recommends: true
+- name: nfs-kernel-server
+  install_recommends: true
+- name: bpftrace
+  install_recommends: true
+- name: bpfcc-tools
+  install_recommends: true
+- name: firmware-bnx2
+  install_recommends: true
+- name: firmware-bnx2x
+  install_recommends: true
+- name: firmware-cavium
+  install_recommends: true
+- name: firmware-linux
+  install_recommends: true
+- name: firmware-myricom
+  install_recommends: true
+- name: firmware-netronome
+  install_recommends: true
+- name: firmware-netxen
+  install_recommends: true
+- name: firmware-qlogic
+  install_recommends: true
+- name: firmware-realtek
+  install_recommends: true
+- name: grub-pc-bin
+  install_recommends: true
+- name: grub-efi-amd64-bin
+  install_recommends: true
+- name: htop
+  install_recommends: true
+- name: ifstat
+  install_recommends: true
+- name: nvidia-kernel
+  install_recommends: true
+- name: nslcd
+  install_recommends: true
+- name: nvidia-container-toolkit
+  install_recommends: true
+- name: nvidia-smi
+  install_recommends: true
+- name: openzfs
+  install_recommends: true
+- name: open-vm-tools
+  install_recommends: true
+- name: libnvidia-encode1
+  install_recommends: true
+- name: linux-cpupower
+  install_recommends: true
+- name: truenas-samba
+  install_recommends: true
+- name: nfs4xdr-acl-tools
+  install_recommends: true
+- name: nfs4-acl-tools
+  install_recommends: true
+- name: qemu-guest-agent
+  install_recommends: true
+- name: scst-dbg
+  install_recommends: true
+- name: squashfs-tools
+  install_recommends: true
+- name: sysstat
+  install_recommends: true
+- name: truenas
+  install_recommends: true
+- name: wireguard-tools
+  install_recommends: false
+- name: openzfs-zfs-modules-dbg
+  install_recommends: true
+- name: openzfs-zfs-initramfs
+  install_recommends: true
+- name: nvme-cli
+  install_recommends: true
+- name: convmv
+  install_recommends: true
+- name: open-iscsi
+  install_recommends: true
+- name: git
+  # middleware actually has a hard dependency on the git binary
+  # however, if we specify this in the debian/control file, all
+  # of the recommended packages get installed which is absurd.
+  # We don't need packages like "git-gui", "gitweb", "git-daemon-run" etc.
+  # So until we can figure out how to mark packages as dependencies
+  # without installing non-dependent packages, this will have to suffice
+  install_recommends: false
 
 #
 # Packages which are removed from the base TrueNAS SCALE System by default
@@ -120,54 +163,58 @@ base-prune:
 - libgdk-pixbuf2.0-0
 - x11-common
 - python-is-python2
+# dependency tree openvpn->easy-rsa->opensc
+# we don't need this package since it's for dealing with smart cards
+# but more importantly, removes a category of potentical CVE exposure
+- opensc
+# remove gnupg to remove class of potential CVEs and also because we
+# don't use it
+- gnupg
 
 #
 # Update build-epoch when you want to force the next build to be
 # non-incremental
 ############################################################################
-build-epoch: 6
+build-epoch: 9
 
 # Apt Preferences
 ############################################################################
 apt_preferences:
 - Package: "*"
-  Pin: "release n=bullseye"
+  Pin: "release n=bookworm"
   Pin-Priority: 900
 - Package: "*"
   Pin: "origin \"\""
   Pin-Priority: 950
 - Package: "*cuda*"
-  Pin: "version 515*"
+  Pin: "version 525.89*"
   Pin-Priority: 1000
-- Package: "*golang*"
-  Pin: "release n=bullseye-backports"
-  Pin-Priority: 1000
+- Package: "*libcrypto*"
+  Pin: "origin \"\""
+  Pin-Priority: 1050
 - Package: "*libnvcuvid*"
-  Pin: "version 515*"
+  Pin: "version 525.89*"
   Pin-Priority: 1000
-- Package: "libssl1.1"
-  Pin:  "origin \"\""
-  Pin-Priority: 1100
-- Package: "*node*"
-  Pin: "origin apt.tn.ixsystems.com/apt-direct/bluefin/nightlies/nodejs"
-  Pin-Priority: 1000
+- Package: "*libssl*"
+  Pin: "origin \"\""
+  Pin-Priority: 1050
 - Package: "*nvidia*"
-  Pin: "version 515*"
+  Pin: "version 525.89*"
   Pin-Priority: 1000
-- Package: "openssl"
-  Pin:  "origin \"\""
-  Pin-Priority: 1100
+- Package: "*openssl*"
+  Pin: "origin \"\""
+  Pin-Priority: 1050
 - Package: "*policykit*"
-  Pin: "release n=bullseye-security"
+  Pin: "release n=bookworm-security"
   Pin-Priority: 1000
 - Package: "*polkit*"
-  Pin: "release n=bullseye-security"
+  Pin: "release n=bookworm-security"
   Pin-Priority: 1000
 - Package: "*ssl*"
-  Pin: "release n=bullseye-security"
+  Pin: "release n=bookworm-security"
   Pin-Priority: 1000
 - Package: "*tls*"
-  Pin: "release n=bullseye-security"
+  Pin: "release n=bookworm-security"
   Pin-Priority: 1000
 - Package: "*zfs*"
   Pin: "version 2.1.*"
@@ -178,36 +225,63 @@ apt_preferences:
 # NOTE: Installed in the order listed
 ############################################################################
 additional-packages:
-- package: xtail
+- name: xtail
   comment: used by support (NAS-108788)
-- package: iperf3
+  install_recommends: true
+- name: iperf3
   comment: requested by sales (NAS-108787)
-- package: fio
+  install_recommends: true
+- name: fio
   comment: requested by sales (NAS-108787)
-- package: dnsutils
+  install_recommends: true
+- name: dnsutils
   comment: requested by community (NAS-109391)
-- package: traceroute
+  install_recommends: true
+- name: traceroute
   comment: requested by platform and perf (NAS-110493)
-- package: openseachest
+  install_recommends: true
+- name: openseachest
   comment: requested by performance team (NAS-106154)
-- package: cxgbtool
+  install_recommends: true
+- name: cxgbtool
   comment: requested by OS team (NAS-111041)
-- package: python-is-python3
+  install_recommends: true
+- name: python-is-python3
   comment: NAS-111358 (symlinks /usr/bin/python to python3)
-- package: sdparm
+  install_recommends: true
+- name: sdparm
   comment: NAS-114723
-- package: powertop
+  install_recommends: true
+- name: powertop
   comment: requested by community (NAS-113898)
-- package: pv
+  install_recommends: true
+- name: pv
   comment: requested by community (NAS-115638)
-- package: ndctl
+  install_recommends: true
+- name: ndctl
   comment: requested by community (NAS-108490)
-- package: ipmctl
+  install_recommends: true
+- name: ipmctl
   comment: requested by community (NAS-108490)
-- package: acpica-tools
+  install_recommends: true
+- name: acpica-tools
   comment: requested by platform team (NAS-118432)
-- package: freeipmi
+  install_recommends: true
+- name: freeipmi
   comment: requested by engineering (NAS-121050)
+  install_recommends: true
+- name: cu
+  comment: requested by platform team (NAS-120155)
+  install_recommends: true
+- name: lrzsz
+  comment: requested by platform team (NAS-120155)
+  install_recommends: true
+- name: minicom
+  comment: requested by platform team (NAS-120155)
+  install_recommends: true
+- name: i2c-tools
+  comment: requested by platform team (NAS-120155)
+  install_recommends: true
 
 #
 # List of additional packages installed into TrueNAS SCALE ISO file
@@ -222,8 +296,10 @@ iso-packages:
 - jq
 - live-boot
 - truenas-installer
+- parted
 - pciutils
 - python3-libzfs
+- python3-licenselib
 - python3-pyudev
 - setserial
 - udhcpc
@@ -238,23 +314,24 @@ iso-packages:
 # to be built
 ############################################################################
 sources:
-- name: corssl
-  repo: git@github.com:iXsystems/corssl.git
+- name: openssl
+  repo: https://github.com/truenas/openssl
   branch: master
   generate_version: false
-  build_constraints:
-    - name: FIPS
-      value: true
-      type: boolean
-- name: waagent
-  repo: https://github.com/truenas/WALinuxAgent.git
-  branch: truenas/master
+  predepscmd:
+    - "apt install -y wget xz-utils"
+    - "./pull.sh"
 - name: chelsio_uwire
   repo: https://github.com/truenas/chelsiouwire
   branch: master
 - name: openseachest
-  branch: truenas/master
+  branch: master
   repo: https://github.com/truenas/openseachest
+  predepscmd:
+    - "apt install -y wget xz-utils"
+    - "./pull.sh"
+  deoptions: nocheck
+  generate_version: false
 - name: inadyn
   branch: master
   repo: https://github.com/truenas/inadyn.git
@@ -263,12 +340,16 @@ sources:
   repo: https://github.com/truenas/pyglfs.git
 - name: kernel
   repo: https://github.com/truenas/linux
-  branch: truenas/linux-5.15
+  branch: truenas/linux-6.1
   batch_priority: 0
+  supports_ccache: true
   env:
     EXTRAVERSION: "-production"
+    PYTHON: "python3"
   predepscmd:
     - "apt install -y flex bison dwarves libssl-dev devscripts"
+    # Install dependencies to build perf
+    - "apt install -y libelf-dev libdw-dev systemtap-sdt-dev libunwind-dev libslang2-dev libperl-dev binutils-dev libiberty-dev python3 python3-setuptools python3-dev liblzma-dev libzstd-dev libcap-dev libnuma-dev libbabeltrace-dev openjdk-17-jdk"
     # We remove git files because kernel makefile tries to interact with git for determining version
     # which results in misconfigured version due to our debian based changes
     - "rm -rf .git .gitattributes .gitignore"
@@ -282,40 +363,41 @@ sources:
   buildcmd:
     - "rm -rf .config.old"
     - "make -j$(nproc) bindeb-pkg"
-- name: kernel-dbg
-  repo: https://github.com/truenas/linux
-  branch: truenas/linux-5.15
-  batch_priority: 0
-  env:
-    EXTRAVERSION: "-debug"
-  predepscmd:
-    - "apt install -y flex bison dwarves libssl-dev devscripts"
-    # We remove git files because kernel makefile tries to interact with git for determining version
-    # which results in misconfigured version due to our debian based changes
-    - "rm -rf .git .gitattributes .gitignore"
-    - "make defconfig"
-    - "./scripts/kconfig/merge_config.sh .config scripts/package/truenas/debian_amd64.config"
-    - "./scripts/kconfig/merge_config.sh .config scripts/package/truenas/truenas.config"
-    - "./scripts/kconfig/merge_config.sh .config scripts/package/truenas/tn-debug.config"
-    - "make syncconfig"
-    - "make archprepare"
-    - "./scripts/package/mkdebian"
-  buildcmd:
-    - "rm -rf .config.old"
-    - "make -j$(nproc) bindeb-pkg"
+  subpackages:
+    - name: kernel-dbg
+      batch_priority: 0
+      supports_ccache: true
+      env:
+        EXTRAVERSION: "-debug"
+      predepscmd:
+        - "apt install -y flex bison dwarves libssl-dev devscripts"
+        # We remove git files because kernel makefile tries to interact with git for determining version
+        # which results in misconfigured version due to our debian based changes
+        - "rm -rf .git .gitattributes .gitignore"
+        - "make defconfig"
+        - "./scripts/kconfig/merge_config.sh .config scripts/package/truenas/debian_amd64.config"
+        - "./scripts/kconfig/merge_config.sh .config scripts/package/truenas/truenas.config"
+        - "./scripts/kconfig/merge_config.sh .config scripts/package/truenas/tn-debug.config"
+        - "make syncconfig"
+        - "make archprepare"
+        - "./scripts/package/mkdebian"
+      buildcmd:
+        - "rm -rf .config.old"
+        - "make -j$(nproc) bindeb-pkg"
 - name: nfs4xdr_acl_tools
   repo: https://github.com/truenas/nfs4xdr-acl-tools
   branch: master
 - name: openzfs
   repo: https://github.com/truenas/zfs
   batch_priority: 0
-  branch: truenas/zfs-2.1-release
+  branch: truenas/zfs-2.2-release
   env:
     KVERS: "$(shell apt info linux-headers-truenas-production-amd64 | awk '/Source:/ { print $$2}' | sed 's/linux-//')"
     KSRC: "/usr/src/linux-headers-$(KVERS)"
     KOBJ: "$(KSRC)"
   predepscmd:
     - "cp -r contrib/debian debian"
+    - "sed -i 's/libtool,/libtool, linux-image-truenas-production-amd64, linux-headers-truenas-production-amd64,/' debian/control"
   deps_path: contrib/debian
   prebuildcmd:
     - "sed 's/@CFGOPTS@/--enable-debuginfo/g' debian/rules.in > debian/rules"
@@ -324,31 +406,33 @@ sources:
     - "dpkg-buildpackage -us -uc -b"
     - "rm ../openzfs-zfs-dkms*.deb ../openzfs-zfs-dracut*.deb"
     - "debian/rules override_dh_binary-modules"
-  kernel_module: true
-  generate_version: false
-- name: openzfs-dbg
-  repo: https://github.com/truenas/zfs
-  batch_priority: 0
-  branch: truenas/zfs-2.1-release
-  env:
-    KVERS: "$(shell apt info linux-headers-truenas-debug-amd64 | awk '/Source:/ { print $$2}' | sed 's/linux-//')"
-    KSRC: "/usr/src/linux-headers-$(KVERS)"
-    KOBJ: "$(KSRC)"
-  predepscmd:
-    - "cp -r contrib/debian debian"
-  deps_path: contrib/debian
-  prebuildcmd:
-    - "sed 's/@CFGOPTS@/--enable-debug --enable-debuginfo/g' debian/rules.in > debian/rules"
-    - "chmod +x debian/rules"
-    - "sed  -i 's/Provides: openzfs-zfs-modules/Provides: openzfs-zfs-modules-dbg/'  debian/control.modules.in"
-  buildcmd:
-    - "sh autogen.sh"
-    - "./scripts/make_gitrev.sh"
-    - "debian/rules override_dh_binary-modules"
-  kernel_module: true
   explicit_deps:
+    - kernel
     - kernel-dbg
   generate_version: false
+  subpackages:
+    - name: openzfs-dbg
+      batch_priority: 0
+      env:
+        KVERS: "$(shell apt info linux-headers-truenas-debug-amd64 | awk '/Source:/ { print $$2}' | sed 's/linux-//')"
+        KSRC: "/usr/src/linux-headers-$(KVERS)"
+        KOBJ: "$(KSRC)"
+      predepscmd:
+        - "cp -r contrib/debian debian"
+        - "sed -i 's/libtool,/libtool, linux-image-truenas-debug-amd64, linux-headers-truenas-debug-amd64,/' debian/control"
+      deps_path: contrib/debian
+      prebuildcmd:
+        - "sed 's/@CFGOPTS@/--enable-debug --enable-debuginfo/g' debian/rules.in > debian/rules"
+        - "chmod +x debian/rules"
+        - "sed  -i 's/Provides: openzfs-zfs-modules/Provides: openzfs-zfs-modules-dbg/'  debian/control.modules.in"
+      buildcmd:
+        - "sh autogen.sh"
+        - "./scripts/make_gitrev.sh"
+        - "debian/rules override_dh_binary-modules"
+      explicit_deps:
+        - kernel
+        - kernel-dbg
+      generate_version: false
 - name: truenas_samba
   repo: https://github.com/truenas/samba
   branch: SCALE-v4-18-stable
@@ -371,9 +455,6 @@ sources:
 - name: truenas_installer
   repo: https://github.com/truenas/truenas-installer
   branch: master
-- name: migrate113
-  repo: https://github.com/truenas/freenas-migrate113
-  branch: master
 - name: scst
   repo: https://github.com/truenas/scst
   generate_version: false
@@ -387,28 +468,30 @@ sources:
     - "make 2perf"
     - "make scst-dist-gzip"
     - "make dpkg DEBEMAIL=no-reply@ixsystems.com DEBFULLNAME=TrueNAS"
-  kernel_module: true
-  branch: truenas-3.7.x
   explicit_deps:
-    - openzfs
-- name: scst-dbg
-  repo: https://github.com/truenas/scst
-  generate_version: false
-  env:
-    KVER: "$(shell apt info linux-headers-truenas-debug-amd64 | awk '/Source:/ { print $$2}' | sed 's/linux-//')"
-    KDIR: "/lib/modules/$(KVER)/build"
-  prebuildcmd:
-    - "sed -i s/^DEBIAN_REVISION=.*/DEBIAN_REVISION=~truenas+1/g Makefile"
-    - "cat debian/control.dbgmodules > debian/control"
-    - "make debian/changelog"
-  buildcmd:
-    - "make 2debug"
-    - "make scst-dist-gzip"
-    - "make dpkg DEBEMAIL=no-reply@ixsystems.com DEBFULLNAME=TrueNAS"
-  kernel_module: true
-  branch: truenas-3.7.x
-  explicit_deps:
-    - openzfs-dbg
+    - kernel
+    - kernel-dbg
+  branch: truenas-pre-3.8.x
+  subpackages:
+    - name: scst-dbg
+      generate_version: false
+      env:
+        KVER: "$(shell apt info linux-headers-truenas-debug-amd64 | awk '/Source:/ { print $$2}' | sed 's/linux-//')"
+        KDIR: "/lib/modules/$(KVER)/build"
+        PKG_BUILD_MODE: 2debug
+      depscmd:
+        - "cat debian/control.dbgmodules > debian/control"
+      prebuildcmd:
+        - "sed -i s/^DEBIAN_REVISION=.*/DEBIAN_REVISION=~truenas+1/g Makefile"
+        - "cat debian/control.dbgmodules > debian/control"
+        - "make debian/changelog"
+      buildcmd:
+        - "make 2debug"
+        - "make scst-dist-gzip"
+        - "make dpkg DEBEMAIL=no-reply@ixsystems.com DEBFULLNAME=TrueNAS"
+      explicit_deps:
+        - kernel
+        - kernel-dbg
 - name: truenas_binaries
   repo: https://github.com/truenas/binaries
   branch: master
@@ -422,35 +505,17 @@ sources:
 - name: sedutil
   repo: https://github.com/truenas/sedutil
   branch: master
-- name: pydevd
-  repo: https://github.com/truenas/pydevd.git
-  branch: master
 - name: python_netsnmpagent
   repo: https://github.com/truenas/python-netsnmpagent
   branch: master
 - name: python_truenas_requirements
   repo: https://github.com/truenas/python-truenas-requirements
   branch: master
-- name: throttle
-  repo: https://github.com/truenas/throttle
-  branch: master
-- name: aiorwlock
-  repo: https://github.com/truenas/aiorwlock
-  branch: master
 - name: licenselib
   repo: https://github.com/truenas/licenselib
   branch: master
-- name: migrate93
-  repo: https://github.com/truenas/freenas-migrate93
-  branch: truenas/scale
 - name: glustercli_python
   repo: https://github.com/truenas/glustercli-python
-  branch: master
-- name: intel_pcm
-  repo: https://github.com/truenas/intel-pcm
-  branch: master
-- name: minio
-  repo: https://github.com/truenas/minio
   branch: master
 - name: zectl
   repo: https://github.com/truenas/zectl
@@ -460,6 +525,9 @@ sources:
   deps_path: packaging/debian
   explicit_deps:
     - openzfs
+- name: ixdiagnose
+  repo: https://github.com/truenas/ixdiagnose
+  branch: master
 - name: catalog_validation
   repo: https://github.com/truenas/catalog_validation
   branch: master
@@ -487,30 +555,18 @@ sources:
 - name: swagger
   repo: https://github.com/truenas/swagger
   branch: main
-- name: truenas_files
-  repo: https://github.com/truenas/middleware
-  branch: master
-  subdir: src/freenas
-- name: middlewared
-  repo: https://github.com/truenas/middleware
-  branch: master
-  subdir: src/middlewared
-- name: midcli
-  repo: https://github.com/truenas/midcli
-  branch: master
 - name: truenas
   repo: https://github.com/truenas/middleware
   branch: master
   subdir: debian
-- name: collectd
-  repo: https://github.com/truenas/collectd
+  subpackages:
+    - name: middlewared
+      subdir: src/middlewared
+    - name: truenas_files
+      subdir: src/freenas
+- name: midcli
+  repo: https://github.com/truenas/midcli
   branch: master
-  debian_fork: true
-  predepscmd:
-    - "apt install -y wget xz-utils"
-    - "./pull.sh"
-  deoptions: nocheck
-  generate_version: false
 - name: grub2
   repo: https://github.com/truenas/grub2
   branch: master
@@ -536,29 +592,16 @@ sources:
   branch: master
   deoptions: nocheck
   generate_version: false
-- name: rrdcached
-  repo: https://github.com/truenas/rrdtool
+- name: py_sg3
+  repo: https://github.com/truenas/py-sg3
   branch: master
-  debian_fork: true
-  predepscmd:
-    - "apt install -y wget xz-utils"
-    - "./pull.sh"
-  deoptions: nocheck
-  generate_version: false
-- name: smartmontools
-  repo: https://github.com/truenas/smartmontools
+- name: nvidia
+  repo: https://github.com/truenas/nvidia
+  batch_priority: 0
   branch: master
-  debian_fork: true
   predepscmd:
-    - "apt install -y wget xz-utils"
     - "./pull.sh"
-  deoptions: nocheck
-  generate_version: false
-- name: ndctl
-  repo: https://github.com/truenas/ndctl
-  branch: main
-  predepscmd:
-    - "apt install -y wget xz-utils"
-    - "./pull.sh"
-  deoptions: nocheck
+  explicit_deps:
+    - kernel
+    - kernel-dbg
   generate_version: false

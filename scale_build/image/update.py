@@ -1,6 +1,6 @@
-import contextlib
 import glob
 import itertools
+import logging
 import os
 import textwrap
 import shutil
@@ -14,6 +14,9 @@ from scale_build.utils.paths import CHROOT_BASEDIR, RELEASE_DIR, UPDATE_DIR
 from .bootstrap import umount_chroot_basedir
 from .manifest import build_manifest, build_release_manifest, update_file_path, update_file_checksum_path
 from .utils import run_in_chroot
+
+
+logger = logging.getLogger(__name__)
 
 
 def build_rootfs_image():
@@ -75,10 +78,15 @@ def install_rootfs_packages_impl():
     run_in_chroot(['apt', 'update'])
 
     manifest = get_manifest()
-    for package in itertools.chain(
-        manifest['base-packages'], map(lambda d: d['package'], manifest['additional-packages'])
-    ):
-        run_in_chroot(['apt', 'install', '-V', '-y', package])
+    for package_entry in itertools.chain(manifest['base-packages'], manifest['additional-packages']):
+        log_message = f'Installing {package_entry}'
+        install_cmd = ['apt', 'install', '-V', '-y', package_entry['name']]
+        if not package_entry['install_recommends']:
+            install_cmd.insert(3, '--no-install-recommends')
+            log_message += ' (no recommends)'
+
+        logger.debug(log_message)
+        run_in_chroot(install_cmd)
 
     # Do any custom rootfs setup
     custom_rootfs_setup()
@@ -100,14 +108,20 @@ def get_apt_sources():
     return apt_sources
 
 
+def should_rem_execute_bit(binary):
+    if binary.is_file() and any((binary.name in ('dpkg', 'apt'), binary.name.startswith('apt-'))):
+        # disable apt related binaries so that users can avoid footshooting themselves
+        # also disable dpkg since you can do the same type of footshooting
+        return True
+
+    return False
+
+
 def post_rootfs_setup():
-    # We want to disable apt related binaries so that users can avoid footshooting themselves as
-    # using apt is not advised/recommended
-    binaries_path = os.path.join(CHROOT_BASEDIR, 'usr/bin')
     no_executable_flag = ~stat.S_IXUSR & ~stat.S_IXGRP & ~stat.S_IXOTH
-    for binary in filter(lambda s: s == 'apt' or s.startswith('apt-'), os.listdir(binaries_path)):
-        binary_path = os.path.join(binaries_path, binary)
-        os.chmod(binary_path, stat.S_IMODE(os.lstat(binary_path).st_mode) & no_executable_flag)
+    with os.scandir(os.path.join(CHROOT_BASEDIR, 'usr/bin')) as binaries:
+        for binary in filter(lambda x: should_rem_execute_bit(x), binaries):
+            os.chmod(binary.path, stat.S_IMODE(binary.stat(follow_symlinks=False).st_mode) & no_executable_flag)
 
 
 def custom_rootfs_setup():
@@ -139,7 +153,7 @@ def custom_rootfs_setup():
 
     for f in os.listdir(os.path.join(tmp_systemd, 'multi-user.target.wants')):
         file_path = os.path.join(tmp_systemd, f)
-        if os.path.isfile(file_path) and not os.path.islink(file_path) and f != 'rrdcached.service':
+        if os.path.isfile(file_path) and not os.path.islink(file_path):
             os.unlink(file_path)
 
     run_in_chroot(['rsync', '-av', '/tmp/systemd/', '/usr/lib/systemd/system/'])
@@ -153,16 +167,6 @@ def clean_rootfs():
 
     # Remove any temp build depends
     run_in_chroot(['apt', 'autoremove', '-y'])
-
-    # We install the nvidia-kernel-dkms package which causes a modprobe file to be written
-    # (i.e /etc/modprobe.d/nvidia.conf). This file tries to modprobe all the associated
-    # nvidia drivers at boot whether or not your system has an nvidia card installed.
-    # For all truenas certified and truenas enterprise hardware, we do not include nvidia GPUS.
-    # So to prevent a bunch of systemd "Failed" messages to be barfed to the console during boot,
-    # we remove this file because the linux kernel dynamically loads the modules based on whether
-    # or not you have the actual hardware installed in the system.
-    with contextlib.suppress(FileNotFoundError):
-        os.unlink(os.path.join(CHROOT_BASEDIR, 'etc/modprobe.d/nvidia.conf'))
 
     # OpenSSH generates its server keys on installation, we don't want all SCALE builds
     # of the same version to have the same keys. middleware will generate these keys on

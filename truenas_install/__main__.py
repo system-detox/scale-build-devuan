@@ -1,5 +1,7 @@
 # -*- coding=utf-8 -*-
+from collections import defaultdict
 import contextlib
+from datetime import datetime
 import itertools
 import json
 import logging
@@ -14,6 +16,8 @@ import tempfile
 import textwrap
 
 import psutil
+
+from licenselib.license import ContractType, License
 
 logger = logging.getLogger(__name__)
 
@@ -38,11 +42,11 @@ def write_progress(progress, message):
     sys.stdout.flush()
 
 
-def write_error(error, raise_=False):
+def write_error(error, raise_=False, prefix="Error: "):
     if is_json_output:
         sys.stdout.write(json.dumps({"error": error}) + "\n")
     else:
-        sys.stdout.write(f"Error: {error}\n")
+        sys.stdout.write(f"{prefix}{error}\n")
     sys.stdout.flush()
 
     if raise_:
@@ -79,14 +83,14 @@ def dict_factory(cursor, row):
     return d
 
 
-def query_config_table(table, database_path, prefix=None):
+def query_row(query, database_path, prefix=None):
     database_path = database_path
     conn = sqlite3.connect(database_path)
     try:
         conn.row_factory = dict_factory
         c = conn.cursor()
         try:
-            c.execute(f"SELECT * FROM {table}")
+            c.execute(query)
             result = c.fetchone()
         finally:
             c.close()
@@ -95,6 +99,10 @@ def query_config_table(table, database_path, prefix=None):
     if prefix:
         result = {k.replace(prefix, ""): v for k, v in result.items()}
     return result
+
+
+def query_config_table(table, database_path, prefix=None):
+    return query_row(f"SELECT * FROM {table}", database_path, prefix)
 
 
 def configure_serial_port(root, db_path):
@@ -109,8 +117,12 @@ def configure_serial_port(root, db_path):
         )
 
 
+def database_path(root):
+    return os.path.join(root, "data/freenas-v1.db")
+
+
 def enable_system_user_services(root, old_root):
-    configure_serial_port(root, os.path.join(old_root, "data/freenas-v1.db"))
+    configure_serial_port(root, database_path(old_root))
     enable_user_services(root, old_root)
 
 
@@ -235,17 +247,125 @@ def configure_system_for_zectl(boot_pool):
         run_command(["zfs", "set", "org.zectl:bootloader=grub", root_ds])
 
 
+def read_license(root):
+    license_path = os.path.join(root, "data/license")
+    try:
+        with open(license_path) as f:
+            return License.load(f.read().strip('\n'))
+    except Exception:
+        return None
+
+
+def andjoin(array, singular, plural):
+    if len(array) == 1:
+        return f"{array[0]} {singular}"
+
+    if len(array) == 2:
+        return f"{array[0]} and {array[1]} {plural}"
+
+    return ", ".join(array[:-1]) + f" and {array[-1]} {plural}"
+
+
+def precheck(old_root):
+    services = [
+        ("dynamicdns", "Dynamic DNS", "inadyn", None),
+        ("openvpn_client", "OpenVPN Client", "openvpn", "client.conf"),
+        ("openvpn_server", "OpenVPN Server", "openvpn", "server.conf"),
+        ("rsync", "Rsync", "rsync", "--daemon"),
+        ("s3", "S3", "minio", None),
+        ("tftp", "TFTP", "in.tftpd", None),
+        ("webdav", "WebDAV", "apache2", None),
+    ]
+
+    if old_root is not None:
+        enabled_services = []
+        db_path = database_path(old_root)
+        if os.path.exists(db_path):
+            for service, title, process_name, cmdline in services:
+                try:
+                    if query_row(
+                        f"SELECT * FROM services_services WHERE srv_service = '{service}' AND srv_enable = 1",
+                        db_path,
+                    ) is not None:
+                        enabled_services.append(title)
+                except Exception:
+                    pass
+
+        processes = defaultdict(list)
+        for p in psutil.process_iter():
+            processes[p.name()].append(p.pid)
+        running_services = []
+        for service, title, process_name, cmdline in services:
+            if process_name in processes:
+                # If we report an enabled service, we don't want to report the same service running.
+                if title not in enabled_services:
+                    for pid in processes[process_name]:
+                        if cmdline is not None:
+                            try:
+                                if cmdline not in psutil.Process(pid).cmdline():
+                                    continue
+                            except psutil.NoSuchProcess:
+                                continue
+
+                        try:
+                            with open(f"/proc/{pid}/cgroup") as f:
+                                cgroups = f.read()
+                        except FileNotFoundError:
+                            cgroups = ""
+
+                        if "kubepods" in cgroups:
+                            continue
+
+                        running_services.append(title)
+                        break
+
+        if enabled_services or running_services:
+            if (
+                (licenseobj := read_license(old_root)) and
+                ContractType(licenseobj.contract_type) in [ContractType.silver, ContractType.gold] and
+                licenseobj.contract_end > datetime.utcnow().date()
+            ):
+                fatal = True
+                text = (
+                    "There are active configured services on this system that are not present in the new version. To "
+                    "avoid any loss of system services, please contact iXsystems Support to schedule a guided upgrade. "
+                    "Additional details are available from https://www.truenas.com/docs/scale/scaledeprecatedfeatures/."
+                )
+            else:
+                fatal = False
+                text = (
+                    "There are active configured services on this system that are not present in the new version. "
+                    "Upgrading this system deletes these services and saved settings: "
+                    f"{andjoin(sorted(enabled_services + running_services), 'service', 'services')}. "
+                    "This disrupts any system usage that relies on these active services."
+                )
+
+            return fatal, text
+
+
 def main():
     global is_json_output
 
     input = json.loads(sys.stdin.read())
 
-    cleanup = input.get("cleanup", True)
-    disks = input["disks"]
-    force_grub_install = input.get("force_grub_install", False)
     if input.get("json"):
         is_json_output = True
     old_root = input.get("old_root", None)
+
+    if input.get("precheck"):
+        if precheck_result := precheck(old_root):
+            fatal, text = precheck_result
+            if fatal:
+                write_error(text)
+                sys.exit(2)
+            else:
+                write_error(text, prefix="")
+
+        sys.exit(0)
+
+    cleanup = input.get("cleanup", True)
+    disks = input["disks"]
+    force_grub_install = input.get("force_grub_install", False)
     authentication_method = input.get("authentication_method", None)
     pool_name = input["pool_name"]
     sql = input.get("sql", None)
@@ -254,17 +374,21 @@ def main():
     with open(os.path.join(src, "manifest.json")) as f:
         manifest = json.load(f)
 
-    dataset_name = f"{pool_name}/ROOT/{manifest['version']}"
     old_bootfs_prop = run_command(["zpool", "get", "-H", "-o", "value", "bootfs", pool_name]).stdout.strip()
 
     write_progress(0, "Creating dataset")
-    existing_datasets = set(filter(None, run_command(["zfs", "list", "-H", "-o", "name"]).stdout.split("\n")))
-    if dataset_name in existing_datasets:
-        for i in itertools.count(1):
-            probe_dataset_name = f"{dataset_name}-{i}"
-            if probe_dataset_name not in existing_datasets:
-                dataset_name = probe_dataset_name
-                break
+    if input.get("dataset_name"):
+        dataset_name = input["dataset_name"]
+    else:
+        dataset_name = f"{pool_name}/ROOT/{manifest['version']}"
+
+        existing_datasets = set(filter(None, run_command(["zfs", "list", "-H", "-o", "name"]).stdout.split("\n")))
+        if dataset_name in existing_datasets:
+            for i in itertools.count(1):
+                probe_dataset_name = f"{dataset_name}-{i}"
+                if probe_dataset_name not in existing_datasets:
+                    dataset_name = probe_dataset_name
+                    break
     run_command([
         "zfs", "create",
         "-o", "mountpoint=legacy",
@@ -297,7 +421,7 @@ def main():
                     if buffer and buffer[0:1] == b"\r" and buffer[-1:] == b"%":
                         if m := RE_UNSQUASHFS_PROGRESS.match(buffer[1:].decode("utf-8", "ignore")):
                             write_progress(
-                                int(m.group("extracted")) / int(m.group("total")) * 0.9,
+                                int(m.group("extracted")) / int(m.group("total")) * 0.5,
                                 "Extracting",
                             )
 
@@ -308,7 +432,7 @@ def main():
                     write_error({"error": f"unsquashfs failed with exit code {p.returncode}: {stdout}"})
                     raise subprocess.CalledProcessError(p.returncode, cmd, stdout)
 
-                write_progress(0.9, "Performing post-install tasks")
+                write_progress(0.5, "Performing post-install tasks")
 
                 with contextlib.suppress(FileNotFoundError):
                     # We want to remove this for fresh installation + upgrade both
@@ -320,7 +444,8 @@ def main():
                     os.unlink(f"{root}/var/lib/dbus/machine-id")
 
                 is_freebsd_upgrade = False
-                setup_machine_id = configure_serial = False
+                setup_machine_id = False
+                configure_serial = False
                 if old_root is not None:
                     if os.path.exists(f"{old_root}/bin/freebsd-version"):
                         is_freebsd_upgrade = True
@@ -363,6 +488,21 @@ def main():
 
                     setup_machine_id = configure_serial = True
 
+                is_freebsd_loader_upgrade = is_freebsd_upgrade
+                if not is_freebsd_loader_upgrade and old_root is None and old_bootfs_prop != "-":
+                    # Probably installing SCALE on CORE-formatted pool
+                    with tempfile.TemporaryDirectory() as td:
+                        try:
+                            run_command(["mount", "-t", "zfs", old_bootfs_prop, td])
+                        except Exception:
+                            pass
+                        else:
+                            try:
+                                if os.path.exists(f"{td}/bin/freebsd-version"):
+                                    is_freebsd_loader_upgrade = True
+                            finally:
+                                run_command(["umount", td])
+
                 # We do not want /data directory to be world readable
                 # Doing this here is important so that we cover both fresh install and upgrade case
                 run_command(["chmod", "-R", "u=rwX,g=,o=", f"{root}/data"])
@@ -391,22 +531,26 @@ def main():
                         undo.append(["umount", f"{root}/boot/grub"])
 
                         # It will legitimately exit with code 2 if initramfs must be updated (which we'll do anyway)
+                        write_progress(0.55, "Running autotune")
                         run_command(["chroot", root, "/usr/local/bin/truenas-autotune.py", "--skip-unknown"],
                                     check=False)
 
                         if authentication_method is not None:
+                            write_progress(0.56, "Setting up authentication")
                             run_command(["chroot", root, "/usr/local/bin/truenas-set-authentication-method.py"],
                                         input=json.dumps(authentication_method))
 
                         if sql is not None:
+                            write_progress(0.57, "Upgrading database")
                             run_command(["chroot", root, "sqlite3", "/data/freenas-v1.db"], input=sql)
 
                         if configure_serial:
+                            write_progress(0.58, "Configuring serial port")
                             configure_serial_port(root, os.path.join(root, "data/freenas-v1.db"))
 
                         # Set bootfs before running update-grub
                         run_command(["zpool", "set", f"bootfs={dataset_name}", pool_name])
-                        if is_freebsd_upgrade:
+                        if is_freebsd_loader_upgrade:
                             if old_bootfs_prop != "-":
                                 run_command(["zfs", "set", "truenas:12=1", old_bootfs_prop])
 
@@ -416,12 +560,22 @@ def main():
                                 cp.returncode, f'Failed to execute truenas-initrd: {cp.stderr}'
                             )
 
+                        write_progress(0.7, "Preparing NVDIMM configuration")
                         run_command(["chroot", root, "/usr/local/bin/truenas-nvdimm.py"])
+                        write_progress(0.71, "Preparing GRUB configuration")
                         run_command(["chroot", root, "/usr/local/bin/truenas-grub.py"])
+                        write_progress(0.8, "Updating initramfs")
                         run_command(["chroot", root, "update-initramfs", "-k", "all", "-u"])
+                        write_progress(0.9, "Updating GRUB")
                         run_command(["chroot", root, "update-grub"])
 
+                        # We would like to configure fips bit as well here
+                        write_progress(0.95, "Configuring FIPS")
+                        run_command(["chroot", root, "/usr/bin/configure_fips"])
+
                         if old_root is None or force_grub_install:
+                            write_progress(0.96, "Installing GRUB")
+
                             if os.path.exists("/sys/firmware/efi"):
                                 run_command(["mount", "-t", "efivarfs", "efivarfs", f"{root}/sys/firmware/efi/efivars"])
                                 undo.append(["umount", f"{root}/sys/firmware/efi/efivars"])
@@ -439,7 +593,7 @@ def main():
                                 efi_partition_number = 2
                                 format_efi_partition = True
                                 copy_bsd_loader = False
-                                if is_freebsd_upgrade:
+                                if is_freebsd_loader_upgrade:
                                     first_partition_guid = get_partition_guid(disk, 1)
                                     if first_partition_guid == EFI_SYSTEM_PARTITION_GUID:
                                         install_grub_i386 = False

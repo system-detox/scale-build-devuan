@@ -6,7 +6,7 @@ import threading
 
 from toposort import toposort
 
-from .bootstrap.bootstrapdir import PackageBootstrapDirectory
+from .bootstrap.bootstrapdir import PackageBootstrapDir
 from .clean import clean_bootstrap_logs
 from .config import PARALLEL_BUILD, PKG_DEBUG
 from .exceptions import CallError
@@ -109,7 +109,7 @@ def _build_packages_impl(desired_packages=None):
     logger.debug('Setting up bootstrap directory')
 
     with LoggingContext('build_packages', 'w'):
-        PackageBootstrapDirectory().setup()
+        PackageBootstrapDir().setup()
 
     logger.debug('Successfully setup bootstrap directory')
 
@@ -117,8 +117,10 @@ def _build_packages_impl(desired_packages=None):
         shutil.rmtree(PKG_LOG_DIR)
     os.makedirs(PKG_LOG_DIR)
 
-    all_packages = get_initialized_packages(desired_packages)
-    to_build = get_to_build_packages(all_packages, desired_packages)
+    with LoggingContext('package_ordering', 'w'):
+        all_packages = get_initialized_packages(desired_packages)
+        to_build = get_to_build_packages(all_packages, desired_packages)
+
     package_queue = queue.Queue()
     in_progress = {}
     failed = {}

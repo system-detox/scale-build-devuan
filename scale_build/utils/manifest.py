@@ -13,6 +13,63 @@ from scale_build.utils.paths import MANIFEST
 BRANCH_REGEX = re.compile(r'(branch\s*:\s*)\b[\w/\.-]+\b')
 SSH_SOURCE_REGEX = re.compile(r'^[\w]+@(\w.+):(\w.+)')
 
+INDIVIDUAL_REPO_SCHEMA = {
+    'type': 'object',
+    'properties': {
+        'name': {'type': 'string'},
+        'identity_file_path': {'type': 'string'},
+        'batch_priority': {'type': 'integer'},
+        'predepscmd': {
+            'type': 'array',
+            'items': [{'type': 'string'}],
+        },
+        'build_constraints': {
+            'type': 'array',
+            'items': [{
+                'type': 'object',
+                'properties': {
+                    'name': {'type': 'string'},
+                    'value': {
+                        'anyOf': [
+                            {'type': 'string'},
+                            {'type': 'integer'},
+                            {'type': 'boolean'},
+                        ],
+                    },
+                    'type': {
+                        'type': 'string',
+                        'enum': ['boolean', 'string', 'integer'],
+                    },
+                },
+                'required': ['name', 'value', 'type'],
+            }],
+        },
+        'buildcmd': {
+            'type': 'array',
+            'items': [{'type': 'string'}],
+        },
+        'prebuildcmd': {
+            'type': 'array',
+            'items': [{'type': 'string'}],
+        },
+        'depscmd': {
+            'type': 'array',
+            'items': [{'type': 'string'}],
+        },
+        'deps_path': {'type': 'string'},
+        'supports_ccache': {'type': 'boolean'},
+        'generate_version': {'type': 'boolean'},
+        'explicit_deps': {
+            'type': 'array',
+            'items': [{'type': 'string'}],
+        },
+        'subdir': {'type': 'string'},
+        'deoptions': {'type': 'string'},
+        'jobs': {'type': 'integer'},
+        'debian_fork': {'type': 'boolean'},
+    },
+    'additionalProperties': False,
+}
 MANIFEST_SCHEMA = {
     'type': 'object',
     'properties': {
@@ -43,7 +100,15 @@ MANIFEST_SCHEMA = {
         },
         'base-packages': {
             'type': 'array',
-            'items': [{'type': 'string'}],
+            'items': [{
+                'type': 'object',
+                'properties': {
+                    'install_recommends': {'type': 'boolean'},
+                    'name': {'type': 'string'},
+                },
+                'required': ['install_recommends', 'name'],
+                'additionalProperties': False,
+            }],
         },
         'base-prune': {
             'type': 'array',
@@ -67,10 +132,12 @@ MANIFEST_SCHEMA = {
             'items': [{
                 'type': 'object',
                 'properties': {
-                    'package': {'type': 'string'},
+                    'name': {'type': 'string'},
                     'comment': {'type': 'string'},
+                    'install_recommends': {'type': 'boolean'},
                 },
-                'required': ['package', 'comment'],
+                'required': ['name', 'comment', 'install_recommends'],
+                'additionalProperties': False,
             }]
         },
         'iso-packages': {
@@ -80,60 +147,20 @@ MANIFEST_SCHEMA = {
         'sources': {
             'type': 'array',
             'items': [{
-                'type': 'object',
+                **{k: v for k, v in INDIVIDUAL_REPO_SCHEMA.items() if k != 'properties'},
                 'properties': {
-                    'name': {'type': 'string'},
-                    'repo': {'type': 'string'},
-                    'identity_file_path': {'type': 'string'},
+                    **INDIVIDUAL_REPO_SCHEMA['properties'],
                     'branch': {'type': 'string'},
-                    'batch_priority': {'type': 'integer'},
-                    'predepscmd': {
-                        'type': 'array',
-                        'items': [{'type': 'string'}],
-                    },
-                    'build_constraints': {
+                    'repo': {'type': 'string'},
+                    'subpackages': {
                         'type': 'array',
                         'items': [{
-                            'type': 'object',
-                            'properties': {
-                                'name': {'type': 'string'},
-                                'value': {
-                                    'anyOf': [
-                                        {'type': 'string'},
-                                        {'type': 'integer'},
-                                        {'type': 'boolean'},
-                                    ],
-                                },
-                                'type': {
-                                    'type': 'string',
-                                    'enum': ['boolean', 'string', 'integer'],
-                                },
-                            },
-                            'required': ['name', 'value', 'type'],
+                            **INDIVIDUAL_REPO_SCHEMA,
+                            'required': ['name'],
                         }],
                     },
-                    'buildcmd': {
-                        'type': 'array',
-                        'items': [{'type': 'string'}],
-                    },
-                    'prebuildcmd': {
-                        'type': 'array',
-                        'items': [{'type': 'string'}],
-                    },
-                    'deps_path': {'type': 'string'},
-                    'kernel_module': {'type': 'boolean'},
-                    'generate_version': {'type': 'boolean'},
-                    'explicit_deps': {
-                        'type': 'array',
-                        'items': [{'type': 'string'}],
-                    },
-                    'subdir': {'type': 'string'},
-                    'deoptions': {'type': 'string'},
-                    'jobs': {'type': 'integer'},
-                    'debian_fork': {'type': 'boolean'},
                 },
                 'required': ['name', 'branch', 'repo'],
-                'additionalProperties': False,
             }]
         },
     },
@@ -221,6 +248,6 @@ def validate_manifest():
     if invalid_packages:
         raise CallError(
             f'{",".join(invalid_packages)!r} are using repos from unsupported git upstream. Scale-build only '
-            'accepts packages from github.com/truenas organisation (To skip this for dev '
+            'accepts packages from github.com/truenas organization (To skip this for dev '
             'purposes, please set "SKIP_SOURCE_REPO_VALIDATION" in your environment).'
         )
