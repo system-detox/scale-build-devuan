@@ -175,7 +175,7 @@ base-prune:
 # Update build-epoch when you want to force the next build to be
 # non-incremental
 ############################################################################
-build-epoch: 9
+build-epoch: 10
 
 # Apt Preferences
 ############################################################################
@@ -332,9 +332,6 @@ sources:
     - "./pull.sh"
   deoptions: nocheck
   generate_version: false
-- name: inadyn
-  branch: master
-  repo: https://github.com/truenas/inadyn.git
 - name: pyglfs
   branch: master
   repo: https://github.com/truenas/pyglfs.git
