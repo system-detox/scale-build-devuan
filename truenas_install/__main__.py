@@ -28,7 +28,7 @@ FREEBSD_BOOT_PARTITION_GUID = "83BD6B9D-7F41-11DC-BE0B-001560B84F0F"
 CORE_BSD_LOADER_PATH = "/boot/efi/efi/boot/BOOTx64.efi"
 SCALE_BSD_LOADER_PATH = "/boot/efi/efi/boot/FreeBSD.efi"
 
-RE_UNSQUASHFS_PROGRESS = re.compile(r"\[.+\]\s+(?P<extracted>[0-9]+)/(?P<total>[0-9]+)\s+(?P<progress>[0-9]+)%")
+RE_UNSQUASHFS_PROGRESS = re.compile(r"\[.+]\s+(?P<extracted>[0-9]+)/(?P<total>[0-9]+)\s+(?P<progress>[0-9]+)%")
 run_kw = dict(check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding="utf-8", errors="ignore")
 
 IS_FREEBSD = platform.system().upper() == "FREEBSD"
@@ -504,6 +504,8 @@ def main():
                             "etc/machine-id",
                             "home"
                         ])
+                        if os.path.exists(f'{old_root}/var/lib/libvirt/qemu/nvram'):
+                            rsync.append('var/lib/libvirt/qemu/nvram')
 
                     run_command([
                         "rsync", "-aRx",
@@ -597,6 +599,7 @@ def main():
                             if old_bootfs_prop != "-":
                                 run_command(["zfs", "set", "truenas:12=1", old_bootfs_prop])
 
+                        write_progress(0.6, "Preparing initramfs configuration")
                         cp = run_command([f"{root}/usr/local/bin/truenas-initrd.py", root], check=False)
                         if cp.returncode > 1:
                             raise subprocess.CalledProcessError(

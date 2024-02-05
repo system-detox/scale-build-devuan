@@ -1,5 +1,5 @@
 ---
-code_name: "Dragonfish"
+code_name: "ElectricEel"
 debian_release: "bookworm"
 identity_file_path_default: "~/.ssh/id_rsa"
 #
@@ -8,34 +8,34 @@ identity_file_path_default: "~/.ssh/id_rsa"
 # into the build chroots, or the final system images.
 ############################################################################
 apt-repos:
-  url: http://apt.tn.ixsystems.com/apt-direct/dragonfish/nightlies/debian/
+  url: http://apt.tn.ixsystems.com/apt-direct/electriceel/nightlies/debian/
   distribution: bookworm
   components: main
   additional:
-  - url: http://apt.tn.ixsystems.com/apt-direct/dragonfish/nightlies/libnvidia/
+  - url: http://apt.tn.ixsystems.com/apt-direct/electriceel/nightlies/libnvidia/
     distribution: bookworm
     component: main
     key: keys/docker.gpg
-  - url: http://apt.tn.ixsystems.com/apt-direct/dragonfish/nightlies/helm/
+  - url: http://apt.tn.ixsystems.com/apt-direct/electriceel/nightlies/helm/
     distribution: all
     component: main
     key: keys/helm.gpg
-  - url: http://apt.tn.ixsystems.com/apt-direct/dragonfish/nightlies/debian-security/
+  - url: http://apt.tn.ixsystems.com/apt-direct/electriceel/nightlies/debian-security/
     distribution: bookworm-security
     component: main
-  - url: http://apt.tn.ixsystems.com/apt-direct/dragonfish/nightlies/debian-backports/
+  - url: http://apt.tn.ixsystems.com/apt-direct/electriceel/nightlies/debian-backports/
     distribution: bookworm-backports
     component: "main contrib non-free"
-  - url: http://apt.tn.ixsystems.com/apt-direct/dragonfish/nightlies/debian-debug/
+  - url: http://apt.tn.ixsystems.com/apt-direct/electriceel/nightlies/debian-debug/
     distribution: bookworm-debug
     component: main
-  - url: http://apt.tn.ixsystems.com/apt-direct/dragonfish/nightlies/yarn/
+  - url: http://apt.tn.ixsystems.com/apt-direct/electriceel/nightlies/yarn/
     distribution: stable
     component: main
-  - url: http://apt.tn.ixsystems.com/apt-direct/dragonfish/nightlies/nvidia/
+  - url: http://apt.tn.ixsystems.com/apt-direct/electriceel/nightlies/nvidia/
     distribution: bookworm
     component: main
-  - url: http://apt.tn.ixsystems.com/apt-direct/dragonfish/nightlies/pcm/
+  - url: http://apt.tn.ixsystems.com/apt-direct/electriceel/nightlies/pcm/
     distribution: bookworm
     component: main
 
@@ -170,6 +170,12 @@ base-prune:
 # remove gnupg to remove class of potential CVEs and also because we
 # don't use it
 - gnupg
+# The functionality that lvm2 provides is mutually exclusive with
+# ZFS so remove it. NOTE: We've also seen a well-known piece of
+# software (in the wild) that will SSH into us, use lvm tools to
+# create volumes on-top of ZVOLs to _explicitly_ "lock" the
+# underlying zvol preventing us from doing anything with it.
+- lvm2
 
 #
 # Update build-epoch when you want to force the next build to be
@@ -188,6 +194,12 @@ apt_preferences:
   Pin-Priority: 950
 - Package: "*cuda*"
   Pin: "version 525.89*"
+  Pin-Priority: 1000
+- Package: "*libc-*"
+  Pin: "release n=bookworm-security"
+  Pin-Priority: 1000
+- Package: "*libc6*"
+  Pin: "release n=bookworm-security"
   Pin-Priority: 1000
 - Package: "*libcrypto*"
   Pin: "origin \"\""
@@ -208,6 +220,9 @@ apt_preferences:
   Pin: "release n=bookworm-security"
   Pin-Priority: 1000
 - Package: "*polkit*"
+  Pin: "release n=bookworm-security"
+  Pin-Priority: 1000
+- Package: "*ssh*"
   Pin: "release n=bookworm-security"
   Pin-Priority: 1000
 - Package: "*ssl*"
@@ -282,6 +297,9 @@ additional-packages:
 - name: i2c-tools
   comment: requested by platform team (NAS-120155)
   install_recommends: true
+- name: systemd-container
+  comment: requested by community (NAS-123533)
+  install_recommends: false
 
 #
 # List of additional packages installed into TrueNAS SCALE ISO file
@@ -332,12 +350,9 @@ sources:
     - "./pull.sh"
   deoptions: nocheck
   generate_version: false
-- name: pyglfs
-  branch: master
-  repo: https://github.com/truenas/pyglfs.git
 - name: kernel
   repo: https://github.com/truenas/linux
-  branch: truenas/linux-6.1
+  branch: truenas/linux-6.6
   batch_priority: 0
   supports_ccache: true
   env:
@@ -387,7 +402,7 @@ sources:
 - name: openzfs
   repo: https://github.com/truenas/zfs
   batch_priority: 0
-  branch: truenas/zfs-2.2-release
+  branch: stable/dragonfish
   env:
     KVERS: "$(shell apt info linux-headers-truenas-production-amd64 | awk '/Source:/ { print $$2}' | sed 's/linux-//')"
     KSRC: "/usr/src/linux-headers-$(KVERS)"
@@ -397,6 +412,9 @@ sources:
     - "sed -i 's/libtool,/libtool, linux-image-truenas-production-amd64, linux-headers-truenas-production-amd64,/' debian/control"
   deps_path: contrib/debian
   prebuildcmd:
+    - "sh autogen.sh"
+    - "./configure"
+    - "cp contrib/debian/changelog debian/changelog"
     - "sed 's/@CFGOPTS@/--enable-debuginfo/g' debian/rules.in > debian/rules"
     - "chmod +x debian/rules"
   buildcmd:
@@ -406,6 +424,7 @@ sources:
   explicit_deps:
     - kernel
     - kernel-dbg
+    - openssl
   generate_version: false
   subpackages:
     - name: openzfs-dbg
@@ -419,6 +438,9 @@ sources:
         - "sed -i 's/libtool,/libtool, linux-image-truenas-debug-amd64, linux-headers-truenas-debug-amd64,/' debian/control"
       deps_path: contrib/debian
       prebuildcmd:
+        - "sh autogen.sh"
+        - "./configure"
+        - "cp contrib/debian/changelog debian/changelog"
         - "sed 's/@CFGOPTS@/--enable-debug --enable-debuginfo/g' debian/rules.in > debian/rules"
         - "chmod +x debian/rules"
         - "sed  -i 's/Provides: openzfs-zfs-modules/Provides: openzfs-zfs-modules-dbg/'  debian/control.modules.in"
@@ -429,6 +451,7 @@ sources:
       explicit_deps:
         - kernel
         - kernel-dbg
+        - openssl
       generate_version: false
 - name: truenas_samba
   repo: https://github.com/truenas/samba
@@ -468,7 +491,7 @@ sources:
   explicit_deps:
     - kernel
     - kernel-dbg
-  branch: truenas-pre-3.8.x
+  branch: truenas-3.8.x
   subpackages:
     - name: scst-dbg
       generate_version: false
@@ -510,9 +533,6 @@ sources:
   branch: master
 - name: licenselib
   repo: https://github.com/truenas/licenselib
-  branch: master
-- name: glustercli_python
-  repo: https://github.com/truenas/glustercli-python
   branch: master
 - name: zectl
   repo: https://github.com/truenas/zectl
@@ -601,4 +621,13 @@ sources:
   explicit_deps:
     - kernel
     - kernel-dbg
+  generate_version: false
+- name: smartmontools
+  repo: https://github.com/truenas/smartmontools
+  branch: master
+  debian_fork: true
+  predepscmd:
+    - "apt install -y wget xz-utils"
+    - "./pull.sh"
+  deoptions: nocheck
   generate_version: false

@@ -39,6 +39,7 @@ staff:x:50:
 games:x:60:
 users:x:100:
 nogroup:x:65534:
+nobody:x:65534:
 systemd-timesync:x:101:
 systemd-journal:x:102:
 systemd-network:x:103:
@@ -62,7 +63,6 @@ Debian-exim:x:120:
 tftp:x:121:
 tcpdump:x:123:
 rdma:x:124:
-gluster:x:125:
 nut:x:126:
 ladvd:x:127:
 libvirt:x:128:
@@ -72,6 +72,8 @@ builtin_users:x:545:
 builtin_guests:x:546:
 apps:x:568:
 webdav:x:666:
+truenas_readonly_administrators:x:951:
+truenas_sharing_administrators:x:952:
 docker:x:999:
 libvirt-qemu:x:64055:libvirt-qemu
 haproxy:x:130:
